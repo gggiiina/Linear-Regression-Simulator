@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linear Regression Simulator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: linear-gradient(to right, #2b5876, #4e4376);
+      color: #fdfdfd;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 60px 20px;
+    }
+    .container-custom {
+      max-width: 1000px;
+      margin: auto;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 40px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #ffffff;
+    }
+    label {
+      font-weight: 500;
+      margin-top: 20px;
+    }
+    .form-range::-webkit-slider-thumb {
+      background-color: #ffc107;
+    }
+    .form-range::-moz-range-thumb {
+      background-color: #ffc107;
+    }
+    canvas {
+      background-color: transparent;
+      border-radius: 10px;
+      width: 100% !important;
+      height: 400px !important;
+    }
+    .chart-info {
+      margin-top: 30px;
+      font-size: 1.1rem;
+      color: #ffe082;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-custom">
+    <h1>Linear Regression Simulator</h1>
+    <div class="row g-4 flex-column flex-md-row">
+      <div class="col-md-5">
+        <div class="mb-4">
+          <label for="n_slider">Number of Data Points (n): <span id="n_val">500</span></label>
+          <input type="range" class="form-range" min="100" max="5000" value="500" id="n_slider">
+
+          <label for="a_slider">True Slope (a): <span id="a_val">2</span></label>
+          <input type="range" class="form-range" min="-10" max="10" step="0.1" value="2" id="a_slider">
+
+          <label for="var_slider">Variance (var): <span id="var_val">20</span></label>
+          <input type="range" class="form-range" min="0" max="100" value="20" id="var_slider">
+        </div>
+        <div class="chart-info">
+          <p><strong>Regression Equation:</strong> <span id="regression_eq">y = ...</span></p>
+          <p><strong>True Equation:</strong> <span id="true_eq">y = ...</span></p>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <canvas id="regressionChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function generateData(n, a, varNoise) {
+      const x = [], y = [];
+      for (let i = 0; i < n; i++) {
+        const xi = Math.random() * 20 - 10;
+        const noise = Math.random() * Math.sqrt(varNoise) * (Math.random() < 0.5 ? -1 : 1);
+        x.push(xi);
+        y.push(a * xi + 100 + noise);
+      }
+      return { x, y };
+    }
+
+    function linearRegression(x, y) {
+      const n = x.length;
+      const x_mean = x.reduce((a,b) => a + b) / n;
+      const y_mean = y.reduce((a,b) => a + b) / n;
+      let num = 0, den = 0;
+      for (let i = 0; i < n; i++) {
+        num += (x[i] - x_mean) * (y[i] - y_mean);
+        den += (x[i] - x_mean) ** 2;
+      }
+      const slope = num / den;
+      const intercept = y_mean - slope * x_mean;
+      return { slope, intercept };
+    }
+
+    function updateChart(n, a, varNoise) {
+      document.getElementById("n_val").textContent = n;
+      document.getElementById("a_val").textContent = a;
+      document.getElementById("var_val").textContent = varNoise;
+
+      const { x, y } = generateData(n, a, varNoise);
+      const { slope, intercept } = linearRegression(x, y);
+
+      document.getElementById("regression_eq").textContent = `y = ${slope.toFixed(4)}x + ${intercept.toFixed(4)}`;
+      document.getElementById("true_eq").textContent = `y = ${a}x + 100 + N(0, ${varNoise})`;
+
+      const points = x.map((xi, i) => ({ x: xi, y: y[i] }));
+      const xSorted = [...x].sort((a,b) => a - b);
+      const yLine = xSorted.map(xi => slope * xi + intercept);
+      const linePoints = xSorted.map((xi, i) => ({ x: xi, y: yLine[i] }));
+
+      chart.data.datasets[0].data = linePoints;
+      chart.data.datasets[1].data = points;
+      chart.update();
+    }
+
+    const ctx = document.getElementById("regressionChart").getContext("2d");
+    const chart = new Chart(ctx, {
+      type: "scatter",
+      data: {
+        datasets: [
+          {
+            label: "Regression Line",
+            type: "line",
+            data: [],
+            borderColor: "#ffffff",
+            borderWidth: 1.5,
+            fill: false,
+            tension: 0
+          },
+          {
+            label: "Data Points",
+            data: [],
+            backgroundColor: "rgba(255, 204, 0, 0.8)",
+            borderColor: "#ffeb3b",
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: "x",
+              color: "#ffffff",
+              font: { size: 16 }
+            },
+            ticks: { color: "#ffffff", font: { size: 14 } }
+          },
+          y: {
+            title: {
+              display: true,
+              text: "y",
+              color: "#ffffff",
+              font: { size: 16 }
+            },
+            ticks: { color: "#ffffff", font: { size: 14 } }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: '#ffffff', font: { size: 14 } }
+          }
+        }
+      }
+    });
+
+    let n = 500, a = 2, varNoise = 20;
+    updateChart(n, a, varNoise);
+
+    document.getElementById("n_slider").addEventListener("input", e => {
+      n = parseInt(e.target.value);
+      updateChart(n, a, varNoise);
+    });
+    document.getElementById("a_slider").addEventListener("input", e => {
+      a = parseFloat(e.target.value);
+      updateChart(n, a, varNoise);
+    });
+    document.getElementById("var_slider").addEventListener("input", e => {
+      varNoise = parseFloat(e.target.value);
+      updateChart(n, a, varNoise);
+    });
+  </script>
+</body>
+</html>
